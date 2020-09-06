@@ -89,6 +89,11 @@ def session_for_view(view: sublime.View,
                  if session.has_capability(capability)), None)
 
 
+def any_session_for_view(view: sublime.View, capability: str, point: Optional[int] = None) -> Optional[Session]:
+    return next((session for session in _any_session_for_view_and_window(view, view.window(), point)
+                 if session.has_capability(capability)), None)
+
+
 def _sessions_for_view_and_window(view: sublime.View, window: Optional[sublime.Window],
                                   point: Optional[int] = None) -> Iterable[Session]:
     if not window:
@@ -107,6 +112,25 @@ def _sessions_for_view_and_window(view: sublime.View, window: Optional[sublime.W
     return ready_sessions
 
 
+def _any_session_for_view_and_window(view: sublime.View, window: Optional[sublime.Window],
+                                     point: Optional[int] = None) -> Iterable[Session]:
+    # give me any session for this view that is not open.e
+    if not window:
+        debug("no window for view", view.file_name())
+        return []
+
+    file_path = view.file_name()
+    if not file_path:
+        # debug("no session for unsaved file")
+        return []
+
+    manager = windows.lookup(window)
+    scope_configs = manager._configs.scope_configs(view, point)
+    sessions = (manager._any_session(config.name) for config in scope_configs)
+    ready_sessions = (session for session in sessions if session and session.state == ClientStates.READY)
+    return ready_sessions
+
+
 def unload_sessions(window: sublime.Window) -> None:
     wm = windows.lookup(window)
     wm.end_sessions()
@@ -117,6 +141,11 @@ client_configs.set_listener(configs.update)
 documents = DocumentHandlerFactory(sublime, settings)
 handlers_dispatcher = LanguageHandlerDispatcher()
 windows = WindowRegistry(configs, documents, start_window_config, sublime, handlers_dispatcher)
+
+
+def is_in_workspace(window: sublime.Window, config_name: str, file_path: str) -> bool:
+    manager = windows.lookup(window)
+    return not manager.get_session(config_name, file_path) is None
 
 
 def configs_for_scope(view: Any, point: Optional[int] = None) -> Iterable[ClientConfig]:
@@ -136,6 +165,27 @@ def is_supported_view(view: sublime.View) -> bool:
 
 
 class LspTextCommand(sublime_plugin.TextCommand):
+    def __init__(self, view: sublime.View) -> None:
+        super().__init__(view)
+
+    def is_visible(self, event: Optional[dict] = None) -> bool:
+        return is_supported_view(self.view)
+
+    def has_client_with_capability(self, capability: str) -> bool:
+        document_session = session_for_view(self.view, capability)
+        if document_session:
+            return True
+
+        return any_session_for_view(self.view, capability) is not None
+
+    def client_with_capability(self, capability: str) -> Optional[Client]:
+        return client_from_session(any_session_for_view(self.view, capability))
+
+    def session_with_capability(self, capability: str) -> Optional[Session]:
+        return any_session_for_view(self.view, capability)
+
+
+class LspDocumentCommand(sublime_plugin.TextCommand):
     def __init__(self, view: sublime.View) -> None:
         super().__init__(view)
 

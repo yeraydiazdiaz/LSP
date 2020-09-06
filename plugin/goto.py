@@ -3,7 +3,7 @@ from Default.history_list import get_jump_history_for_view
 from .core.documents import get_position, is_at_word
 from .core.logging import debug
 from .core.protocol import Request, Point
-from .core.registry import LspTextCommand
+from .core.registry import LspTextCommand, is_in_workspace
 from .core.typing import List, Optional, Any, Tuple
 from .core.url import uri_to_filename
 from .core.views import text_document_position_params
@@ -21,8 +21,9 @@ class LspGotoCommand(LspTextCommand):
         return False
 
     def run(self, edit: sublime.Edit, event: Optional[dict] = None) -> None:
-        client = self.client_with_capability(self.goto_kind + "Provider")
-        if client:
+        session = self.session_with_capability(self.goto_kind + "Provider")
+        if session:
+            client = session.client
             pos = get_position(self.view, event)
             document_position = text_document_position_params(self.view, pos)
             request_type = getattr(Request, self.goto_kind)
@@ -31,9 +32,9 @@ class LspGotoCommand(LspTextCommand):
                 return
             request = request_type(document_position)
             client.send_request(
-                request, lambda response: self.handle_response(response, pos))
+                request, lambda response: self.handle_response(response, pos, session.config.name))
 
-    def handle_response(self, response: Optional[Any], position: int) -> None:
+    def handle_response(self, response: Optional[Any], position: int, config_name: str) -> None:
         def process_response_list(responses: list) -> List[Tuple[str, str, Tuple[int, int]]]:
             return [process_response(x) for x in responses]
 
@@ -53,10 +54,13 @@ class LspGotoCommand(LspTextCommand):
         def open_location(window: sublime.Window, location: Tuple[str, str, Tuple[int, int]]) -> None:
             fname, file_path_and_row_col, rowcol = location
             row, col = rowcol
-            debug("opening location", file_path_and_row_col)
+
+            in_workspace = is_in_workspace(window, config_name, fname)
+            debug("opening {} location {}".format("workspace" if in_workspace else "external", file_path_and_row_col))
+            flags = sublime.ENCODED_POSITION if in_workspace else sublime.ENCODED_POSITION | sublime.TRANSIENT
             window.open_file(
                 file_path_and_row_col,
-                sublime.ENCODED_POSITION)
+                flags)
 
         def select_entry(
                 window: sublime.Window,
