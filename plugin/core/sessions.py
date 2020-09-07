@@ -303,6 +303,88 @@ class SessionBufferProtocol(Protocol):
         ...
 
 
+class AbstractPrerequisite(metaclass=ABCMeta):
+    """
+    Inherit from this class to define a global prerequisite for an AbstractPlugin.
+
+    For instance, your plugin might need a global "python" executable on Windows, or a global "python3"
+    executable on Unix.
+    """
+
+    @abstractmethod
+    def satisfied(self) -> bool:
+        pass
+
+    @abstractmethod
+    def explain(self) -> str:
+        pass
+
+    def can_autofix(self) -> bool:
+        return False
+
+    def autofix(self) -> None:
+        pass
+
+
+class ExecutableInPathPrerequisite(AbstractPrerequisite):
+    """
+    A basic prerequisite that checks if an executable is in the PATH.
+    """
+
+    def __init__(self, executable_name: str) -> None:
+        self.executable_name = executable_name
+
+    def satisfied(self) -> bool:
+        import shutil
+        return bool(shutil.which(self.executable_name))
+
+    def explain(self) -> str:
+        return "Missing executable \"{}\" in PATH".format(self.executable_name)
+
+
+class PythonExecutablePrerequisite(ExecutableInPathPrerequisite):
+    """Checks if `python` is in the PATH on Windows or `python3` on Unix."""
+    def __init__(self) -> None:
+        super().__init__("python" if sublime.platform() == "windows" else "python3")
+
+
+class NodeExecutablePrerequisite(ExecutableInPathPrerequisite):
+    """Checks if `node` is in the PATH."""
+    def __init__(self) -> None:
+        super().__init__("node")
+
+
+class JavaExecutablePrerequisite(ExecutableInPathPrerequisite):
+    """Checks if `java` is in the PATH."""
+    def __init__(self) -> None:
+        super().__init__("java")
+
+
+class DotNetSdkPrerequisite(ExecutableInPathPrerequisite):
+    """Checks if `dotnet` is in the PATH."""
+    def __init__(self) -> None:
+        super().__init__("dotnet")
+
+
+class PowershellRuntimePrerequisite(ExecutableInPathPrerequisite):
+    """Checks for a powershell executable in the PATH."""
+    def __init__(self) -> None:
+        super().__init__("powershell.exe" if sublime.platform() == "windows" else "pwsh")
+
+
+class CSharpRuntimePrerequisite(AbstractPrerequisite):
+    """Checks for a C# runtime environment"""
+    def satisfied(self) -> bool:
+        if sublime.platform() == "windows":
+            # Windows users do not require Mono to run C# executables
+            return True
+        import shutil
+        return bool(shutil.which("mono"))
+
+    def explain(self) -> str:
+        return 'Missing "mono" executable in PATH'
+
+
 class AbstractPlugin(metaclass=ABCMeta):
     """
     Inherit from this class to handle non-standard requests and notifications.
@@ -333,6 +415,18 @@ class AbstractPlugin(metaclass=ABCMeta):
         configuration method (see below).
         """
         raise NotImplementedError()
+
+    @classmethod
+    def prerequisites(cls) -> Optional[List[AbstractPrerequisite]]:
+        """
+        The global prerequisites for this plugin.
+
+        This is different from the `can_start` classmethod in the sense that this classmethod should specify global
+        executables or similar that the plugin will not install by itself. For instance, `node` or `python3` or `java`.
+
+        The default implementation returns `None` (no prerequisites).
+        """
+        return None
 
     @classmethod
     def configuration(cls) -> Tuple[sublime.Settings, str]:
