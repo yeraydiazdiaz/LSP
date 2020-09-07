@@ -361,6 +361,12 @@ class WindowManager(object):
                     return session
         return None
 
+    def _any_session(self, config_name: str) -> Optional[Session]:
+        if config_name in self._sessions:
+            for session in self._sessions[config_name]:
+                return session
+        return None
+
     def update_configs(self) -> None:
         self._configs.update()
 

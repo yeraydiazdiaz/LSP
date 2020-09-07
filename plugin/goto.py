@@ -3,7 +3,7 @@ from Default.history_list import get_jump_history_for_view
 from .core.documents import get_position, is_at_word
 from .core.logging import debug
 from .core.protocol import Request
-from .core.registry import LspTextCommand
+from .core.registry import LspReadOnlyCommand, is_in_workspace
 from .core.typing import List, Optional, Any
 from .core.views import location_to_encoded_filename
 from .core.views import text_document_position_params
@@ -13,12 +13,13 @@ def process_response_list(responses: list) -> List[str]:
     return [location_to_encoded_filename(x) for x in responses]
 
 
-def open_location(window: sublime.Window, location: str) -> None:
-    debug("opening location", location)
-    window.open_file(location, sublime.ENCODED_POSITION)
+def open_location(window: sublime.Window, location: str, in_workspace: bool=True) -> None:
+    debug("opening {} location {}".format("workspace" if in_workspace else "external", location))
+    flags = sublime.ENCODED_POSITION if in_workspace else sublime.ENCODED_POSITION | sublime.TRANSIENT
+    window.open_file(location, flags)
 
 
-def select_entry(window: Optional[sublime.Window], locations: List[str], idx: int, orig_view: sublime.View) -> None:
+def select_entry(window: Optional[sublime.Window], locations: List[str], idx: int, orig_view: sublime.View, config_name: str) -> None:
     if not window:
         return
     if idx >= 0:
@@ -33,7 +34,7 @@ def highlight_entry(window: Optional[sublime.Window], locations: List[str], idx:
     window.open_file(locations[idx], group=window.active_group(), flags=sublime.TRANSIENT | sublime.ENCODED_POSITION)
 
 
-class LspGotoCommand(LspTextCommand):
+class LspGotoCommand(LspReadOnlyCommand):
 
     def __init__(self, view: sublime.View) -> None:
         super().__init__(view)
@@ -45,8 +46,9 @@ class LspGotoCommand(LspTextCommand):
         return False
 
     def run(self, edit: sublime.Edit, event: Optional[dict] = None) -> None:
-        client = self.client_with_capability(self.goto_kind + "Provider")
-        if client:
+        session = self.session_with_capability(self.goto_kind + "Provider")
+        if session:
+            client = session.client
             pos = get_position(self.view, event)
             document_position = text_document_position_params(self.view, pos)
             request_type = getattr(Request, self.goto_kind)
@@ -54,9 +56,9 @@ class LspGotoCommand(LspTextCommand):
                 debug("unrecognized goto kind:", self.goto_kind)
                 return
             request = request_type(document_position)
-            client.send_request(request, self.handle_response)
+            client.send_request(request, lambda r: self.handle_response(r, session.config.name))
 
-    def handle_response(self, response: Any) -> None:
+    def handle_response(self, response: Any, config_name: str) -> None:
         window = self.view.window()
         view = self.view
         if window is None:
@@ -70,11 +72,12 @@ class LspGotoCommand(LspTextCommand):
             else:
                 locations = process_response_list(response)
             if len(locations) == 1:
-                open_location(window, locations[0])
+                (file_path, _, _) = locations[0].split(':')
+                open_location(window, locations[0], is_in_workspace(window, config_name, file_path))
             elif len(locations) > 1:
                 window.show_quick_panel(
                     items=locations,
-                    on_select=lambda x: select_entry(window, locations, x, view),
+                    on_select=lambda x: select_entry(window, locations, x, view, config_name),
                     on_highlight=lambda x: highlight_entry(window, locations, x),
                     flags=sublime.KEEP_OPEN_ON_FOCUS_LOST)
             # TODO: can add region here.

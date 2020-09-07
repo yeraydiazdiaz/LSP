@@ -9,7 +9,7 @@ from .code_actions import CodeActionOrCommand
 from .core.configurations import is_supported_syntax
 from .core.popups import popups
 from .core.protocol import Request, DiagnosticSeverity, Diagnostic, DiagnosticRelatedInformation, Point
-from .core.registry import session_for_view, LspTextCommand, windows
+from .core.registry import session_for_view, LspReadOnlyCommand, windows, any_session_for_view
 from .core.settings import client_configs, settings
 from .core.typing import List, Optional, Any, Dict
 from .core.views import make_link
@@ -69,7 +69,7 @@ goto_kinds = [
 ]
 
 
-class LspHoverCommand(LspTextCommand):
+class LspHoverCommand(LspReadOnlyCommand):
     def __init__(self, view: sublime.View) -> None:
         super().__init__(view)
         self._base_dir = None   # type: Optional[str]
@@ -99,6 +99,8 @@ class LspHoverCommand(LspTextCommand):
         # todo: session_for_view looks up windowmanager twice (config and for sessions)
         # can we memoize some part (eg. where no point is provided?)
         session = session_for_view(self.view, 'hoverProvider', point)
+        if not session:
+            session = any_session_for_view(self.view, 'hoverProvider', point)
         if session:
             document_position = text_document_position_params(self.view, point)
             if session.client:
