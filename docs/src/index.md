@@ -1,31 +1,72 @@
-# Getting started
+# Getting Started
 
-1. Install a language server from the [list of language servers](language_servers.md), ensuring it can be started from the command line (is in your PATH).
-2. Run "LSP: Enable Language Server Globally" or "LSP: Enable Lanuage Server in Project" from Sublime's Command Palette to allow the server to start.
-3. Open a document in your language - if the server starts its name will be in the left side of the status bar.
+## Introduction
+
+LSP for Sublime Text implements the [Language Server Protocol](https://microsoft.github.io/language-server-protocol/) and it provides features like auto complete, go to definition, find all references etc.
+
+All features are powered by a language server. A language server provides intelligent code completions based on language semantics and an analysis of your source code.
+
+=== "Smart auto complete"
+
+    <small>
+        Get smart code completion. Press <kbd>f12</kbd> to trigger the documentation popup.
+    </small>
+
+    ![showcase](images/showcase/completions.gif)
+
+=== "Diagnostics"
+
+    <small>
+        From the command palette select <code>LSP: Toggle Diagnostics Panel</code> to open the diagnostics panel. Use <kbd>F4</kbd> and <kbd>shift+f4</kbd> to go to the next/previous diagnostic.
+    </small>
+
+    ![showcase](images/showcase/diagnostics.gif)
 
 
-## About LSP
+=== "Go to definition"
 
-The *Language Server Protocol* is a specification about the communication protocol for use between text editors or IDEs and *language servers* - tools which provide language-specific features like autocomplete, go to definition, or documentation on hover.
-This LSP package acts as an interface between Sublime Text and the language servers, which means that to obtain these features you need to install a server for your language first.
-Language servers can be provided as standalone executables or might require a runtime environment like Node.js or Python.
-The [list of language servers](language_servers.md) shows installation instructions and example configurations for several servers that have been tested and are known to work with the LSP package.
-Visit [Langserver.org](https://langserver.org/) or the [list of language server implementations](https://microsoft.github.io/language-server-protocol/implementors/servers/) maintained by Microsoft for a complete overview of available servers for various programming languages.
+    <small>
+        Go to symbol definition, type definition, declaration or implementation.
+    </small>
 
-For a few languages you can also find dedicated packages on Package Control, which can optionally be installed to simplify the configuration and installation process of a language server and might provide additional features such as automatic updates for the server:
+    ![showcase](images/showcase/definition.gif)
 
-* [LSP-bash](https://packagecontrol.io/packages/LSP-bash)
-* [LSP-css](https://packagecontrol.io/packages/LSP-css)
-* [LSP-dockerfile](https://packagecontrol.io/packages/LSP-dockerfile)
-* [LSP-elm](https://packagecontrol.io/packages/LSP-elm)
-* [LSP-eslint](https://packagecontrol.io/packages/LSP-eslint)
-* [LSP-html](https://packagecontrol.io/packages/LSP-html)
-* [LSP-intelephense](https://packagecontrol.io/packages/LSP-intelephense)
-* [LSP-json](https://packagecontrol.io/packages/LSP-json)
-* [LSP-metals](https://packagecontrol.io/packages/LSP-metals)
-* [LSP-serenata](https://packagecontrol.io/packages/LSP-serenata)
-* [LSP-typescript](https://packagecontrol.io/packages/LSP-typescript)
-* [LSP-vue](https://packagecontrol.io/packages/LSP-vue)
-* [LSP-yaml](https://packagecontrol.io/packages/LSP-yaml)
+=== "Find references"
 
+    <small>
+        Find all symbol references across the project. Use <kbd>F4</kbd> and <kbd>shift+f4</kbd> to go to the next/previous reference.
+    </small>
+
+    ![showcase](images/showcase/references.gif)
+
+=== "Rename symbol"
+
+    <small>
+        Rename the symbol name accross the project.
+    </small>
+
+    ![showcase](images/showcase/rename.gif)
+
+=== "Document highlight"
+
+    <small>
+        <u>Highlights</u> all references to the symbol scoped to the opened file.
+    </small>
+
+    ![showcase](images/showcase/highlight.gif)
+
+=== "Code actions"
+
+    <small>
+        Run commands to fix problems or to refactor code. Code actions can be triggered on save to automatically format your document or to organize imports.
+    </small>
+
+    ![showcase](images/showcase/code_actions.gif)
+
+
+## Installation
+
+* Install [LSP](https://packagecontrol.io/packages/LSP) from Package Control.
+* Add a [language server](language_servers.md).
+    
+Go to the next step to see how to add a language server.
