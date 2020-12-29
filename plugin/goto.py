@@ -73,7 +73,8 @@ class LspGotoCommand(LspReadOnlyCommand):
                 locations = process_response_list(response)
             if len(locations) == 1:
                 debug("single location", locations[0])
-                file_path = locations[0].split(':')[0]
+                # handle windows => E:\asdfasdf:22:11
+                file_path = locations[0].rsplit(':', 2)[0]
                 open_location(window, locations[0], is_in_workspace(window, config_name, file_path))
             elif len(locations) > 1:
                 window.show_quick_panel(
