@@ -79,12 +79,12 @@ class CodeActionsManager:
         region: sublime.Region,
         session_buffer_diagnostics: Sequence[Tuple[SessionBufferProtocol, Sequence[Diagnostic]]],
         actions_handler: Callable[[CodeActionsByConfigName], None]
-    ) -> None:
+    ) -> CodeActionsCollector:
         """
         Requests code actions *only* for provided diagnostics. If session has no diagnostics then
         it will be skipped.
         """
-        self._request_async(view, region, session_buffer_diagnostics, True, actions_handler)
+        return self._request_async(view, region, session_buffer_diagnostics, True, actions_handler)
 
     def request_for_region_async(
         self,
@@ -93,23 +93,23 @@ class CodeActionsManager:
         session_buffer_diagnostics: Sequence[Tuple[SessionBufferProtocol, Sequence[Diagnostic]]],
         actions_handler: Callable[[CodeActionsByConfigName], None],
         only_kinds: Optional[Dict[str, bool]] = None
-    ) -> None:
+    ) -> CodeActionsCollector:
         """
         Requests code actions with provided diagnostics and specified region. If there are
         no diagnostics for given session, the request will be made with empty diagnostics list.
         """
-        self._request_async(view, region, session_buffer_diagnostics, False, actions_handler, only_kinds)
+        return self._request_async(view, region, session_buffer_diagnostics, False, actions_handler, only_kinds)
 
     def request_on_save(
         self,
         view: sublime.View,
         actions_handler: Callable[[CodeActionsByConfigName], None],
         on_save_actions: Dict[str, bool]
-    ) -> None:
+    ) -> CodeActionsCollector:
         """
         Requests code actions on save.
         """
-        self._request_async(view, entire_content_region(view), [], False, actions_handler, on_save_actions)
+        return self._request_async(view, entire_content_region(view), [], False, actions_handler, on_save_actions)
 
     def _request_async(
         self,
@@ -119,10 +119,7 @@ class CodeActionsManager:
         only_with_diagnostics: bool,
         actions_handler: Callable[[CodeActionsByConfigName], None],
         on_save_actions: Optional[Dict[str, bool]] = None
-    ) -> None:
-        if 'codeActionProvider' in userprefs().disabled_capabilities:
-            return None
-
+    ) -> CodeActionsCollector:
         use_cache = on_save_actions is None
         if use_cache:
             location_cache_key = "{}#{}:{}:{}".format(
@@ -131,6 +128,7 @@ class CodeActionsManager:
                 cache_key, cache_collector = self._response_cache
                 if location_cache_key == cache_key:
                     sublime.set_timeout(lambda: actions_handler(cache_collector.get_actions()))
+                    return cache_collector
                 else:
                     self._response_cache = None
 
@@ -161,6 +159,7 @@ class CodeActionsManager:
                         session.send_request_async(request, collector.create_collector(session.config.name))
         if use_cache:
             self._response_cache = (location_cache_key, collector)
+        return collector
 
 
 def filtering_collector(
@@ -240,7 +239,8 @@ class CodeActionOnSaveTask(SaveTask):
 
     def run_async(self) -> None:
         super().run_async()
-        self._request_code_actions_async()
+        if 'codeActionProvider' in userprefs().disabled_capabilities:
+            self._request_code_actions_async()
 
     def _request_code_actions_async(self) -> None:
         self._purge_changes_async()
@@ -274,6 +274,8 @@ class LspCodeActionsCommand(LspTextCommand):
     capability = 'codeActionProvider'
 
     def run(self, edit: sublime.Edit, event: Optional[dict] = None, only_kinds: Optional[List[str]] = None) -> None:
+        if 'codeActionProvider' in userprefs().disabled_capabilities:
+            return
         self.commands = []  # type: List[Tuple[str, str, CodeActionOrCommand]]
         self.commands_by_config = {}  # type: CodeActionsByConfigName
         view = self.view

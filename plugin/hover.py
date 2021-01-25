@@ -88,7 +88,7 @@ class LspHoverCommand(LspTextCommand):
                 return
             self._diagnostics_by_config, covering = listener.diagnostics_touching_point_async(hover_point)
             if self._diagnostics_by_config:
-                if not only_diagnostics:
+                if not only_diagnostics and 'codeActionProvider' not in userprefs().disabled_capabilities:
                     actions_manager.request_with_diagnostics_async(
                         self.view, covering, self._diagnostics_by_config,
                         lambda response: self.handle_code_actions(response, hover_point))
